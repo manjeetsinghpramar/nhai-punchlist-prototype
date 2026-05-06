@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI DataLake 3.0 — PCC / PCOD & Punchlist Monitoring</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { font-family: 'Inter', sans-serif; background: #ECF0F5; color: #212121; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-thumb { background: #CFD9E7; border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  input, select, textarea, button { font-family: inherit; }
+  * { -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="screens-1.jsx"></script>
+<script type="text/babel" src="screens-2.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+/* ── TWEAK DEFAULTS ──────────────────────────────────── */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": "nhai",
+  "density": "compact",
+  "gridStyle": "table"
+}/*EDITMODE-END*/;
+
+const PALETTES = {
+  nhai:   {primary:'#034EA2',primaryDark:'#104685',primaryMuted:'#406B9D',tabInactive:'#708FB6',navy:'#0D2240',surface:'#F5F8FC',pageBg:'#ECF0F5',border:'#CFD9E7',divider:'#E8F0F5'},
+  forest: {primary:'#2E7D32',primaryDark:'#1B5E20',primaryMuted:'#558B2F',tabInactive:'#6A9E6E',navy:'#1A3A1A',surface:'#F1F8F1',pageBg:'#EDF5ED',border:'#C5DFC6',divider:'#DFF0DF'},
+  maroon: {primary:'#880E4F',primaryDark:'#560027',primaryMuted:'#AD1457',tabInactive:'#A0607A',navy:'#2D0A1F',surface:'#FDF1F6',pageBg:'#F5ECF1',border:'#E8C5D6',divider:'#F2DCE8'},
+  slate:  {primary:'#37474F',primaryDark:'#263238',primaryMuted:'#546E7A',tabInactive:'#78909C',navy:'#1C2B30',surface:'#F5F7F8',pageBg:'#ECEFF1',border:'#CFD8DC',divider:'#E3EAF0'},
+};
+
+function applyPalette(name) {
+  const p = PALETTES[name] || PALETTES.nhai;
+  Object.assign(C, p);
+  document.body.style.background = p.pageBg;
+}
+
+/* ── WORKFLOW STAGES SIDEBAR PANEL ─────────────── */
+function WorkflowPanel({record, currentScreen}) {
+  const stages = [
+    { id:'grid',            label:'Landing Grid',                    icon:P.list,    status:'done' },
+    { id:'create',          label:'Create Test Schedule Request',    icon:P.plus,    status:'done' },
+    { id:'checklist',       label:'Fill Checklists (CL 1–6)',        icon:P.check,   status:'done' },
+    { id:'checklist',       label:'AE/IE Review (CL 7–8)',           icon:P.sign,    status:'done' },
+    { id:'test-schedule',   label:'Schedule for Test',               icon:P.clock,   status:'done' },
+    { id:'upload-reports',  label:'Upload Test Reports',             icon:P.upload,  status:'active' },
+    { id:'pcod-request',    label:'PCOD Request (Contractor)',        icon:P.doc,     status:'upcoming' },
+    { id:'punchlist',       label:'Add Punchlist Items (A & B)',     icon:P.list,    status:'upcoming' },
+    { id:'ro-site-visit',   label:'RO Site Visit & Observations',    icon:P.map,     status:'upcoming' },
+    { id:'compliance',      label:'Submit Compliance',               icon:P.shield,  status:'upcoming' },
+    { id:'issue-pcc',       label:'Issue PCC (DSC)',                 icon:P.sign,    status:'upcoming' },
+    { id:'punchlist-monitoring',  label:'Monitor Punchlist Status',  icon:P.refresh, status:'upcoming' },
+  ];
+
+  const screenToStage = {
+    'grid':0, 'create':1, 'checklist':2, 'test-schedule':4,
+    'upload-reports':5, 'pcod-request':6, 'punchlist':7,
+    'ro-site-visit':8, 'compliance':9, 'issue-pcc':10,
+    'punchlist-monitoring':11, 'view-submission':11, 'activity-log':11,
+  };
+  const activeIdx = screenToStage[currentScreen] ?? 0;
+
+  return (
+    <div style={{
+      width: 240, flexShrink: 0, background: '#fff',
+      borderRight: `1px solid ${C.border}`, overflowY: 'auto',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#B0BEC5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+          Workflow Progress
+        </div>
+        {record && (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.primaryDark, lineHeight: 1.3 }}>{record.project}</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{record.upc} · {record.mode}</div>
+            <div style={{ marginTop: 6 }}><Badge status={record.status}/></div>
+          </div>
+        )}
+        {!record && (
+          <div style={{ fontSize: 12, color: C.muted }}>Select a record from the grid</div>
+        )}
+      </div>
+      <div style={{ flex: 1, padding: '12px 0' }}>
+        {stages.map((s, i) => {
+          const isDone = i < activeIdx;
+          const isAct  = i === activeIdx;
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '7px 14px', position: 'relative' }}>
+              {/* Connector line */}
+              {i < stages.length - 1 && (
+                <div style={{ position: 'absolute', left: 22, top: 28, width: 2, height: 18,
+                  background: isDone ? C.success : C.border, zIndex: 0 }}/>
+              )}
+              {/* Dot */}
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0, zIndex: 1,
+                marginTop: 1,
+                background: isDone ? C.success : isAct ? C.primary : C.surface,
+                border: isDone ? 'none' : isAct ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {isDone && <Ic d={P.check} s={10} c='#fff' str sw={3}/>}
+                {isAct && <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.primary }}/>}
+              </div>
+              <div style={{ flex: 1, paddingBottom: 10 }}>
+                <div style={{
+                  fontSize: 12, fontWeight: isAct ? 700 : 500,
+                  color: isDone ? C.success : isAct ? C.primary : C.muted,
+                  lineHeight: 1.3,
+                }}>{s.label}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── MAIN APP ─────────────────────────────────────────── */
+function App() {
+  const [role, setRole]         = useState('AE/IE');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [screen, setScreen]     = useState('grid');
+  const [record, setRecord]     = useState(null);
+  const [showWorkflow, setShowWorkflow] = useState(true);
+  const [t, setTweak]           = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply palette + expose globals whenever tweaks change
+  useEffect(() => {
+    applyPalette(t.palette);
+    window.TWEAKS = t;
+  }, [t]);
+
+  const navigate = (scr, rec) => {
+    setScreen(scr);
+    if (rec) setRecord(rec);
+  };
+
+  const goBack = () => {
+    setScreen('grid');
+    setRecord(null);
+  };
+
+  const renderScreen = () => {
+    const props = { record, role, onBack: goBack, onNavigate: navigate };
+    switch (screen) {
+      case 'grid':                  return <GridScreen role={role} onNavigate={navigate}/>;
+      case 'create':                return <CreateRequestScreen {...props}/>;
+      case 'checklist':             return <ChecklistScreen {...props}/>;
+      case 'test-schedule':         return <TestScheduleScreen {...props} mode="schedule"/>;
+      case 'reschedule':            return <TestScheduleScreen {...props} mode="reschedule"/>;
+      case 'upload-reports':        return <UploadTestReportsScreen {...props}/>;
+      case 'pcod-request':          return <PCODRequestScreen {...props}/>;
+      case 'punchlist':             return <PunchlistScreen {...props}/>;
+      case 'punchlist-monitoring':  return <PunchlistMonitoringScreen {...props}/>;
+      case 'ro-site-visit':         return <ROSiteVisitScreen {...props}/>;
+      case 'compliance':            return <ComplianceScreen {...props}/>;
+      case 'issue-pcc':             return <IssuePCCScreen {...props}/>;
+      case 'view-submission':       return <ViewSubmissionScreen {...props}/>;
+      case 'activity-log':          return <ActivityLogScreen {...props}/>;
+      default:                      return <GridScreen role={role} onNavigate={navigate}/>;
+    }
+  };
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <AppHeader role={role} setRole={setRole} onMenu={() => setSidebarOpen(true)} screen={screen}/>
+
+      {/* Sidebar drawer */}
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
+
+      {/* Body */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+
+        {/* Workflow panel — only show on sub-screens */}
+        {screen !== 'grid' && showWorkflow && (
+          <WorkflowPanel record={record} currentScreen={screen}/>
+        )}
+
+        {/* Main content */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', background: '#ECF0F5' }}>
+          {renderScreen()}
+        </div>
+
+        {/* Workflow toggle button */}
+        {screen !== 'grid' && (
+          <button
+            onClick={() => setShowWorkflow(w => !w)}
+            title={showWorkflow ? 'Hide workflow' : 'Show workflow'}
+            style={{
+              position: 'absolute', bottom: 20, left: showWorkflow ? 252 : 12,
+              zIndex: 90, background: C.primary, color: '#fff',
+              border: 'none', borderRadius: 100, height: 32, padding: '0 14px',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+              boxShadow: '0 2px 8px rgba(3,78,162,0.3)', transition: 'left 0.25s',
+            }}>
+            <Ic d={showWorkflow ? P.chevL : P.chev} s={14} c='#fff' str sw={2}/>
+            {showWorkflow ? 'Hide' : 'Workflow'}
+          </button>
+        )}
+      </div>
+
+      {/* Tweaks Panel */}
+      <TweaksPanel>
+        <TweakSection label="Brand"/>
+        <TweakSelect
+          label="Colour Palette"
+          value={t.palette}
+          options={[
+            {value:'nhai',   label:'NHAI Blue'},
+            {value:'forest', label:'Forest Green'},
+            {value:'maroon', label:'Deep Maroon'},
+            {value:'slate',  label:'Slate'},
+          ]}
+          onChange={v=>setTweak('palette',v)}
+        />
+        <TweakSection label="Layout"/>
+        <TweakRadio
+          label="Information Density"
+          value={t.density}
+          options={['compact','standard','spacious']}
+          onChange={v=>setTweak('density',v)}
+        />
+      </TweaksPanel>
+
+      {/* Bottom hint bar on grid */}
+      {screen === 'grid' && (
+        <div style={{
+          background: C.navy, padding: '8px 32px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            {[
+              { role: 'Contractor', desc: 'Create requests, fill CL1-6, submit PCOD, manage punchlist' },
+              { role: 'AE/IE', desc: 'Review checklists, schedule tests, upload reports, issue PCC' },
+              { role: 'RO', desc: 'Upload site visit report, add observations' },
+              { role: 'PD', desc: 'Submit compliance against RO observations' },
+            ].map(({ role: r, desc }) => (
+              <div key={r} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', padding: '1px 6px', background: 'rgba(255,255,255,0.15)', borderRadius: 4 }}>{r}</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>BRD v3.0 · NHAI DataLake 3.0</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
